@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5026/api/products --max-time 3)",
+      "Bash(curl -sv http://localhost:5026/api/auth/login -X OPTIONS -H \"Origin: http://localhost:5173\" -H \"Access-Control-Request-Method: POST\" --max-time 5)",
+      "Read(//c/Users/hp/OneDrive/Desktop/project/project/**)",
+      "Read(//c/Users/hp/OneDrive/Desktop/project/**)",
+      "Bash(find \"C:\\\\Users\\\\hp\\\\OneDrive\\\\Desktop\\\\project\\\\project\\\\InventoryManagementSystem\" -maxdepth 2 2>&1)",
+      "Bash(curl -s http://localhost:5026/api/products)",
+      "Bash(curl -s http://localhost:5026/api/suppliers)",
+      "Bash(curl -s http://localhost:5026/api/categories)",
+      "Bash(curl -s http://localhost:5026/api/stocktransactions)"
+    ]
+  }
+}
