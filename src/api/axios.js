@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5026',
+  baseURL: 'http://InventoryManagementSystem.somee.com',
   headers: {
     'Content-Type': 'application/json',
   },
