@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api', // Netlify proxy-ga ayaa u wareejin doona Somee
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5026',
+  //baseURL: "http://localhost:5026", // Haddii aad isticmaalayso horumarin maxalli ah, beddel URL-kan
   headers: {
     'Content-Type': 'application/json',
   },
