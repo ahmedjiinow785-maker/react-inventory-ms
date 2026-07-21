@@ -1,0 +1,15 @@
+[build]
+  publish = "build"
+  command = "npm run build"
+
+# Xallinta 404 Error marka React Router la isticmaalayo
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Waa kayd shaqo oo muhiim ah marka HTTPS & HTTP la isku xirayo
+[[headers]]
+  for = "/*"
+    [headers.values]
+      Content-Security-Policy = "upgrade-insecure-requests"
