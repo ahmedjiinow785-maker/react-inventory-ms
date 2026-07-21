@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  //baseURL: 'http://InventoryManagementSystem.somee.com',
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: '/api', // Netlify proxy-ga ayaa u wareejin doona Somee
   headers: {
     'Content-Type': 'application/json',
   },
