@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FiEdit2, FiMinus, FiPlus, FiPlusCircle, FiSearch, FiTrash2 } from 'react-icons/fi';
+import { FiAlertTriangle, FiEdit2, FiMinus, FiPlus, FiPlusCircle, FiSearch, FiTrash2 } from 'react-icons/fi';
 import api from '../api/axios';
 import Modal from '../components/Modal';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -33,6 +33,7 @@ const Products = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [stockInModalOpen, setStockInModalOpen] = useState(false);
   const [stockOutModalOpen, setStockOutModalOpen] = useState(false);
+  const [damagedStockModalOpen, setDamagedStockModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +113,12 @@ const Products = () => {
     setSelectedProduct(product);
     setStockForm({ quantity: '', remarks: '' });
     setStockOutModalOpen(true);
+  };
+
+  const openDamagedStockModal = (product) => {
+    setSelectedProduct(product);
+    setStockForm({ quantity: '', remarks: '' });
+    setDamagedStockModalOpen(true);
   };
 
   const handleChange = (event) => {
@@ -269,6 +276,46 @@ const Products = () => {
     }
   };
 
+  const handleDamagedStock = async (event) => {
+    event.preventDefault();
+    const quantity = Number(stockForm.quantity);
+    const currentStock = Number(selectedProduct?.quantityInStock || 0);
+
+    if (!quantity || quantity < 1) {
+      showError('Quantity must be at least 1.');
+      return;
+    }
+
+    if (quantity > currentStock) {
+      showError(`Cannot record more damaged stock than current stock (${currentStock}).`);
+      return;
+    }
+
+    if (!userID) {
+      showError('User information not available. Please log in again.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.post('/api/stocktransactions/stockout', {
+        productID: selectedProduct.productID,
+        quantity,
+        userID,
+        remarks: `Damaged Stock${stockForm.remarks ? `: ${stockForm.remarks}` : ''}`,
+      });
+
+      showSuccess('Damaged stock recorded successfully.');
+      setDamagedStockModalOpen(false);
+      setSelectedProduct(null);
+      await loadProducts();
+    } catch (err) {
+      showError(err.response?.data?.message || 'Unable to record damaged stock.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="page-card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -353,6 +400,9 @@ const Products = () => {
                             </button>
                             <button type="button" className="text-[#f97316]" onClick={() => openStockOutModal(product)} title="Stock Out">
                               <FiMinus />
+                            </button>
+                            <button type="button" className="text-[#dc2626]" onClick={() => openDamagedStockModal(product)} title="Damaged Stock">
+                              <FiAlertTriangle />
                             </button>
                           </div>
                         </td>
@@ -487,6 +537,39 @@ const Products = () => {
             </button>
             <button type="submit" disabled={submitting} className="rounded-lg bg-[#f97316] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
               {submitting ? 'Processing...' : 'Confirm Stock Out'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={damagedStockModalOpen} onClose={() => setDamagedStockModalOpen(false)} title={`Damaged Stock — ${selectedProduct?.productName || ''}`}>
+        <form className="space-y-4" onSubmit={handleDamagedStock}>
+          <p className="text-sm font-semibold text-[#64748b] dark:text-slate-400">
+            Current Stock: {selectedProduct?.quantityInStock ?? 0}
+          </p>
+          <label className="block space-y-2 text-sm">
+            <span className="font-semibold">Damaged Quantity</span>
+            <input
+              name="quantity"
+              type="number"
+              min="1"
+              max={selectedProduct?.quantityInStock || 0}
+              value={stockForm.quantity}
+              onChange={handleStockChange}
+              className="form-input"
+              required
+            />
+          </label>
+          <label className="block space-y-2 text-sm">
+            <span className="font-semibold">Remarks (optional)</span>
+            <textarea name="remarks" rows="3" value={stockForm.remarks} onChange={handleStockChange} className="form-input" />
+          </label>
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setDamagedStockModalOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold dark:border-slate-600">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="rounded-lg bg-[#dc2626] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+              {submitting ? 'Processing...' : 'Confirm Damaged Stock'}
             </button>
           </div>
         </form>

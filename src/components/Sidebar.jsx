@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FiPieChart, FiBox, FiLayers, FiTruck, FiRefreshCw, FiLogOut, FiX } from 'react-icons/fi';
+import { FiPieChart, FiBox, FiLayers, FiTruck, FiRefreshCw, FiAlertTriangle, FiLogOut, FiX } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/categories', label: 'Categories', icon: FiLayers },
   { to: '/suppliers', label: 'Suppliers', icon: FiTruck },
   { to: '/stocktransactions', label: 'Stock Transactions', icon: FiRefreshCw },
+  { to: '/damaged-stock', label: 'Damaged Stock', icon: FiAlertTriangle },
 ];
 
 const Sidebar = () => {

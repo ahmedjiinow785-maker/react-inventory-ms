@@ -11,6 +11,7 @@ import Products from './pages/Products';
 import Categories from './pages/Categories';
 import Suppliers from './pages/Suppliers';
 import StockTransactions from './pages/StockTransactions';
+import DamagedStock from './pages/DamagedStock';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
             <Route path="/categories" element={<Categories />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/stocktransactions" element={<StockTransactions />} />
+            <Route path="/damaged-stock" element={<DamagedStock />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
+import { FiRotateCcw } from 'react-icons/fi';
 import api from '../api/axios';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { showError } from '../components/Toast';
+import Modal from '../components/Modal';
+import { showError, showSuccess } from '../components/Toast';
+import { useAuth } from '../context/AuthContext';
 import DashboardLayout from '../layouts/DashboardLayout';
 
 const getTransactionType = (transaction) => {
@@ -20,6 +23,9 @@ const getTransactionType = (transaction) => {
   return rawType || 'Unknown';
 };
 
+const isDamagedTransaction = (transaction) =>
+  getTransactionType(transaction).toLowerCase().includes('damage') || transaction.remarks?.toLowerCase().includes('damaged stock');
+
 const getTransactionDate = (transaction) => {
   const rawDate =
     transaction.transactionDate ||
@@ -32,15 +38,23 @@ const getTransactionDate = (transaction) => {
   return dayjs(rawDate).format('DD/MM/YYYY HH:mm');
 };
 
-const StockTransactions = () => {
+const StockTransactions = ({ damagedOnly = false }) => {
+  const { userID } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [restoreItem, setRestoreItem] = useState(null);
+  const [restoring, setRestoring] = useState(false);
 
   const productMap = useMemo(
     () => Object.fromEntries(products.map((product) => [product.productID, product.productName])),
     [products],
+  );
+
+  const visibleTransactions = useMemo(
+    () => (damagedOnly ? transactions.filter(isDamagedTransaction) : transactions),
+    [damagedOnly, transactions],
   );
 
   useEffect(() => {
@@ -68,12 +82,52 @@ const StockTransactions = () => {
     loadTransactions();
   }, []);
 
+  const handleRestore = async () => {
+    if (!restoreItem) return;
+
+    const id = restoreItem.transactionID || restoreItem.id;
+    const productId = restoreItem.productID || restoreItem.productId;
+    const quantity = Number(restoreItem.quantity);
+
+    if (!userID) {
+      showError('User information not available. Please log in again.');
+      return;
+    }
+
+    setRestoring(true);
+
+    try {
+      try {
+        await api.post('/api/damaged-stock/restore', { id, productId, quantity });
+      } catch (err) {
+        if (![404, 405].includes(err.response?.status)) throw err;
+
+        await api.post('/api/stocktransactions/stockin', {
+          productID: productId,
+          quantity,
+          userID,
+          remarks: `Restored damaged stock${restoreItem.remarks ? `: ${restoreItem.remarks}` : ''}`,
+        });
+      }
+
+      setTransactions((current) => current.filter((transaction) => transaction !== restoreItem));
+      setRestoreItem(null);
+      showSuccess('Stock restored successfully.');
+    } catch (err) {
+      showError(err.response?.data?.message || 'Unable to restore damaged stock.');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="page-card p-6">
         <div className="mb-4">
-          <h1 className="text-2xl font-bold text-[#1e293b] dark:text-white">Stock Transactions</h1>
-          <p className="text-sm text-[#64748b] dark:text-slate-400">Track stock movement events and product changes.</p>
+          <h1 className="text-2xl font-bold text-[#1e293b] dark:text-white">{damagedOnly ? 'Damaged Stock' : 'Stock Transactions'}</h1>
+          <p className="text-sm text-[#64748b] dark:text-slate-400">
+            {damagedOnly ? 'Review products removed from inventory because they were damaged.' : 'Track stock movement events and product changes.'}
+          </p>
         </div>
 
         {error ? <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">{error}</div> : null}
@@ -91,17 +145,18 @@ const StockTransactions = () => {
                   <th className="px-4 py-3 font-semibold">Quantity</th>
                   <th className="px-4 py-3 font-semibold">Date</th>
                   <th className="px-4 py-3 font-semibold">Remarks</th>
+                  {damagedOnly ? <th className="px-4 py-3 font-semibold">Actions</th> : null}
                 </tr>
               </thead>
               <tbody>
-                {transactions.length === 0 ? (
+                {visibleTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-4 py-8 text-center text-[#64748b] dark:text-slate-400">
-                      No stock transactions found.
+                    <td colSpan={damagedOnly ? 7 : 6} className="px-4 py-8 text-center text-[#64748b] dark:text-slate-400">
+                      {damagedOnly ? 'No damaged stock records found.' : 'No stock transactions found.'}
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((transaction, index) => {
+                  visibleTransactions.map((transaction, index) => {
                     const type = getTransactionType(transaction);
                     const isStockIn = type === 'StockIn';
 
@@ -120,6 +175,19 @@ const StockTransactions = () => {
                         <td className="px-4 py-3">{transaction.quantity}</td>
                         <td className="px-4 py-3">{getTransactionDate(transaction)}</td>
                         <td className="px-4 py-3">{transaction.remarks || '—'}</td>
+                        {damagedOnly ? (
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => setRestoreItem(transaction)}
+                              className="inline-flex items-center gap-2 rounded-lg bg-[#22c55e] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#16a34a]"
+                              title="Restore / Re-use stock"
+                            >
+                              <FiRotateCcw aria-hidden="true" />
+                              Restore / Re-use
+                            </button>
+                          </td>
+                        ) : null}
                       </tr>
                     );
                   })
@@ -129,6 +197,35 @@ const StockTransactions = () => {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={Boolean(restoreItem)}
+        onClose={() => (restoring ? null : setRestoreItem(null))}
+        title="Confirm Stock Restore"
+      >
+        <p className="mb-6 text-sm text-[#64748b] dark:text-slate-400">
+          Restore <strong>{restoreItem?.quantity || 0}</strong> unit(s) of{' '}
+          <strong>{productMap[restoreItem?.productID || restoreItem?.productId] || 'this product'}</strong> to active inventory?
+        </p>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => setRestoreItem(null)}
+            disabled={restoring}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold dark:border-slate-600"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleRestore}
+            disabled={restoring}
+            className="rounded-lg bg-[#22c55e] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {restoring ? 'Restoring...' : 'Confirm Restore'}
+          </button>
+        </div>
+      </Modal>
     </DashboardLayout>
   );
 };
